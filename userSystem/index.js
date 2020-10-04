@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken")
 const {ObjectId} = require('mongodb')
 const bcrypt = require('bcrypt')
+const bot = require('./../botSystem')
 const saltRounds = 5
 const prefix = '/user'
 const SECRET = process.env.JWT_SECRET || 'supersecret'
@@ -12,6 +13,10 @@ const ERROR_USER_EXISTS = {ok: false, code: 403, error: 'User exists already'}
 const ERROR_USER_NO_TOKEN = {ok: false, code: 400, error: 'No JWT token specified'}
 const ERROR_USER_BAD_PASSWORD = {ok: false, code: 403, error: 'Password is incorrect'}
 const ERROR_USER_UNAUTHORIZED = {ok: false, code: 403, error: 'Unauthorized access'}
+const ERROR_BOT_IN_USER = {ok: false, code: 400, error: 'Bot already attached'}
+
+var user = {}
+
 const defaultUser = (overwrite) => {
   return {
     ...{
@@ -44,7 +49,7 @@ const compareHashedPassword = function(password, hash) {
 }
 
 /* START MIDDLEWARE */
-const verifyJWT = function (req, res, next) {
+user.verifyJWT = function (req, res, next) {
   const authorizationHeader = req.headers['authorization']
   const token = authorizationHeader && authorizationHeader.split(' ')[1]
   if (token == null) return res.send(ERROR_USER_NO_TOKEN)
@@ -55,7 +60,7 @@ const verifyJWT = function (req, res, next) {
   })
 }
 
-const requireBody = function(req, res, next) {
+user.requireBody = function(req, res, next) {
   let goNext = true
   let missingFields = ''
 
@@ -75,7 +80,7 @@ const requireBody = function(req, res, next) {
 /* END MIDDLEWARE */
 
 /* START ROUTES */
-const login =  function (req, res) {
+user.login =  function (req, res) {
   db.collection('users').findOne({email:req.body.email}, {password: false}, (err, result) => {
     if(err) return res.send(ERROR_DB)
     if(!result) return res.send(ERROR_USER_404)
@@ -91,7 +96,7 @@ const login =  function (req, res) {
   })
 }
 
-const register =  function (req, res) {
+user.register =  function (req, res) {
   db.collection('users').findOne({email:req.body.email}, {password: false}, (err, result) => {
       if(err) return res.send(ERROR_DB)
       if(result) return res.send(ERROR_USER_EXISTS)
@@ -109,7 +114,7 @@ const register =  function (req, res) {
     })
 }
 
-const populateUser = function(req, res, next) {
+user.populateUser = function(req, res, next) {
   db.collection('users').findOne({_id:ObjectId(req.user._id)}, {password: false}, (err, result) => {
     if(err) return res.send(ERROR_DB)
     if(!result) return res.send(ERROR_USER_404)
@@ -119,17 +124,40 @@ const populateUser = function(req, res, next) {
   })
 }
 
-const getMe = function (req, res) {
+user.getMe = function (req, res) {
   res.send({ok: true, data: req.user})
 }
-  
+
+user.userMustOwnBot = function (req, res, next) {
+  if(req.user.bots.indexOf(req.bot.t_info.id) !== -1) return res.send(ERROR_BOT_IN_USER)
+  next()
+}
+
+user.addBot = function (req, res) {
+  db.collection('bots').findOneAndUpdate({'t_info.id': req.bot.t_info.id}, {$set: {t_info: req.bot.t_info}}, {upsert: true}, (err, result) => {
+    if(err) return res.send(ERROR_DB)
+    let botID = result.lastErrorObject.updatedExisting ? result.value._id : result.lastErrorObject.upserted
+    db.collection('users').updateOne({_id:ObjectId(req.user._id)}, {
+      $addToSet: {
+        bots: botID
+      }
+    }, (err, resultUser) => {
+      if(err) return res.send(ERROR_DB)
+      res.send({ok: true, bot_id: botID})
+    })
+  })
+}
+
+user.boot = (app) => {
+  db = app.locals.db
+  bot.boot(app)
+  app.post(`/user/login`, user.requireBody, user.login)
+  app.post(`/user/register`, user.requireBody, user.register)
+  app.get(`/user/me`, user.verifyJWT, user.populateUser, user.getMe)
+  app.put(`/user/bot`, user.verifyJWT, bot.populateBotFromBody, user.populateUser, user.addBot)
+  app.get(`/user/bot/:bot_id`, user.verifyJWT, bot.populateBotFromParam, bot.getBot)
+}
+
 /* END ROUTES */
 
-module.exports = {
-  boot: (app) => {
-    db = app.locals.db
-    app.post(`/user/login`, requireBody, login)
-    app.post(`/user/register`, requireBody, register)
-    app.get(`/user/me`, verifyJWT, populateUser, getMe)
-  }
-}
+module.exports = user
