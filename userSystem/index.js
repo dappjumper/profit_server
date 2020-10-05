@@ -129,8 +129,10 @@ user.getMe = function (req, res) {
 }
 
 user.userMustOwnBot = function (req, res, next) {
-  if(req.user.bots.indexOf(req.bot.t_info.id) !== -1) return res.send(ERROR_BOT_IN_USER)
-  next()
+  for(var i = 0; i<req.user.bots.length; i++) {
+    if (req.user.bots[i] == req.params.bot_id) return next()
+  }
+  return res.send(ERROR_USER_UNAUTHORIZED)
 }
 
 user.addBot = function (req, res) {
@@ -155,7 +157,7 @@ user.boot = (app) => {
   app.post(`/user/register`, user.requireBody, user.register)
   app.get(`/user/me`, user.verifyJWT, user.populateUser, user.getMe)
   app.put(`/user/bot`, user.verifyJWT, bot.populateBotFromBody, user.populateUser, user.addBot)
-  app.get(`/user/bot/:bot_id`, user.verifyJWT, bot.populateBotFromParam, bot.getBot)
+  app.get(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.userMustOwnBot, bot.populateBotFromParam, bot.getBot)
 }
 
 /* END ROUTES */

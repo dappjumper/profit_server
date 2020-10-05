@@ -1,4 +1,5 @@
 const axios = require('axios')
+const {ObjectId} = require('mongodb')
 const telegramBase = 'https://api.telegram.org/bot'
 const telegramMethod = (token, method) => `${telegramBase}${token}/${method}`
 const ERROR_NO_TOKEN = {ok: false, error: 'No token specified'}
@@ -38,7 +39,7 @@ bot.populateBotFromParam = (req, res, next) => {
 }
 
 bot.getBot = (req, res) => {
-  res.send(req.bot)
+  res.send({ok: true, data: req.bot})
 }
 
 bot.boot = (app) => {
