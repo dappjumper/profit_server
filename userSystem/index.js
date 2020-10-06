@@ -150,6 +150,13 @@ user.addBot = function (req, res) {
   })
 }
 
+user.removeBot = function (req, res) {
+  db.collection('users').findOneAndUpdate({_id: ObjectId(req.user._id)}, {$pull: {bots: ObjectId(req.params.bot_id)}}, (err, result) => {
+    if(err) return res.send(ERROR_DB)
+    res.send({ok: true})
+  })
+}
+
 user.boot = (app) => {
   db = app.locals.db
   bot.boot(app)
@@ -157,6 +164,7 @@ user.boot = (app) => {
   app.post(`/user/register`, user.requireBody, user.register)
   app.get(`/user/me`, user.verifyJWT, user.populateUser, user.getMe)
   app.put(`/user/bot`, user.verifyJWT, bot.populateBotFromBody, user.populateUser, user.addBot)
+  app.delete(`/user/bot/:bot_id`, user.verifyJWT, user.removeBot)
   app.get(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.userMustOwnBot, bot.populateBotFromParam, bot.getBot)
 }
 
