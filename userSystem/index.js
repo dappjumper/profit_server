@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken")
 const {ObjectId} = require('mongodb')
 const bcrypt = require('bcrypt')
-const bot = require('./../botSystem')
 const saltRounds = 5
 const prefix = '/user'
 const SECRET = process.env.JWT_SECRET || 'supersecret'
@@ -15,6 +14,7 @@ const ERROR_USER_BAD_PASSWORD = {ok: false, code: 403, error: 'Password is incor
 const ERROR_USER_UNAUTHORIZED = {ok: false, code: 403, error: 'Unauthorized access'}
 const ERROR_BOT_IN_USER = {ok: false, code: 400, error: 'Bot already attached'}
 
+var db, bot, telegram = null
 var user = {}
 
 const defaultUser = (overwrite) => {
@@ -31,7 +31,6 @@ const defaultUser = (overwrite) => {
     ...overwrite
   }
 }
-var db = null
 
 const generateJWT = function (payload, expiresIn) {
   return jwt.sign({
@@ -128,7 +127,7 @@ user.getMe = function (req, res) {
   res.send({ok: true, data: req.user})
 }
 
-user.userMustOwnBot = function (req, res, next) {
+user.mustOwnBot = function (req, res, next) {
   for(var i = 0; i<req.user.bots.length; i++) {
     if (req.user.bots[i] == req.params.bot_id) return next()
   }
@@ -159,13 +158,13 @@ user.removeBot = function (req, res) {
 
 user.boot = (app) => {
   db = app.locals.db
-  bot.boot(app)
+  bot = app.locals.bot
+  telegram = app.locals.telegram
   app.post(`/user/login`, user.requireBody, user.login)
   app.post(`/user/register`, user.requireBody, user.register)
   app.get(`/user/me`, user.verifyJWT, user.populateUser, user.getMe)
   app.put(`/user/bot`, user.verifyJWT, bot.populateBotFromBody, user.populateUser, user.addBot)
   app.delete(`/user/bot/:bot_id`, user.verifyJWT, user.removeBot)
-  app.get(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.userMustOwnBot, bot.populateBotFromParam, bot.getBot)
 }
 
 /* END ROUTES */

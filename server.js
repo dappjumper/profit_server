@@ -5,7 +5,6 @@ const MongoClient = require('mongodb').MongoClient;
 const port = process.env.PORT || 8000
 const bodyParser = require('body-parser')
 const cors = require('cors')
-const userSystem = require('./userSystem')
 const MONGODB_URI = process.env.MONGODB_URI
 
 app.use(cors())
@@ -19,6 +18,14 @@ const client = new MongoClient(MONGODB_URI, {useUnifiedTopology: true})
 client.connect(function(err, db) {
   if(err) return console.log('Failed')
   app.locals.db = db.db('profit');
-  userSystem.boot(app)
+  
+  app.locals.user = require('./userSystem')
+  app.locals.bot = require('./botSystem')
+  app.locals.telegram = require('./telegramSystem')
+  
+  app.locals.user.boot(app)
+  app.locals.bot.boot(app)
+  app.locals.telegram.boot(app)
+
   app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
 });
