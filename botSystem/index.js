@@ -47,9 +47,12 @@ bot.activation = (req, res) => {
   db.collection('bots').findOneAndUpdate({_id: ObjectId(req.params.bot_id)}, {$set:{active:req.body.state}}, function(err, result) {
     if(err) return res.send({ok: false, error:'Could not set state'})
     res.send({ok: true, data: {
-      listener: telegram.LISTENER_URL,
+      listener: process.env.LISTENER_URL,
       state: req.body.state
     }})
+    result.value.active = req.body.state
+    if (!req.body.state) return telegram.stopWebhook(result.value)
+    telegram.startWebhook(result.value)
   })
 }
 
