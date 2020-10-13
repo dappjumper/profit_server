@@ -1,7 +1,7 @@
 const axios = require('axios')
 const ERROR_NO_CHANGE = {ok: false, error: 'No change specified'}
 const ERROR_TELEGRAM_API = {ok: false, error: 'Telegram API call failed'}
-const TELEGRAM_API = process.TELEGRAM_API || 'https://api.telegram.org/bot'
+const TELEGRAM_API = process.env.TELEGRAM_API || 'https://api.telegram.org/bot'
 
 const requireTelegram = function (req, res, next) {
 
@@ -61,9 +61,13 @@ telegram.stopWebhook = function(bot) {
   })
 }
 
+const modules = require('./../botSystem/modules.js')
+
 telegram.onUpdate = function(req, res) {
   res.send(200)
-  console.log('Has update!', req.bot.modules)
+  for(let mod in req.bot.modules) {
+    if(req.bot.modules[mod].active && modules.handler[mod]) modules.handler[mod](req)
+  }
 }
 
 telegram.boot = (app) => {
