@@ -1,5 +1,6 @@
 const axios = require('axios')
 const {ObjectId} = require('mongodb')
+const modules = require('./modules')
 const telegramBase = 'https://api.telegram.org/bot'
 const telegramMethod = (token, method) => `${telegramBase}${token}/${method}`
 const ERROR_NO_TOKEN = {ok: false, error: 'No token specified'}
@@ -61,6 +62,7 @@ bot.boot = (app) => {
   user = app.locals.user
   bot = app.locals.bot
   telegram = app.locals.telegram
+  modules.boot(app)
   app.get(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.mustOwnBot, bot.populateBotFromParam, bot.getBot)
   app.patch(`/bot/:bot_id/activation`, user.verifyJWT, user.populateUser, user.mustOwnBot, bot.activation)
 }

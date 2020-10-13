@@ -63,14 +63,14 @@ telegram.stopWebhook = function(bot) {
 
 telegram.onUpdate = function(req, res) {
   res.send(200)
-  console.log('Has update!', req.body)
+  console.log('Has update!', req.bot.modules)
 }
 
 telegram.boot = (app) => {
   db = app.locals.db
   bot = app.locals.bot
   user = app.locals.user
-  app.post('/telegram/:bot_id', telegram.onUpdate)
+  app.post('/telegram/:bot_id', bot.populateBotFromParam, telegram.onUpdate)
 }
 
 module.exports = telegram
