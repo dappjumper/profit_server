@@ -8,6 +8,7 @@ const port = process.env.PORT || 8000
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const MONGODB_URI = process.env.MONGODB_URI
+const _m = require('./modules')
 
 app.use(cors())
 app.use(bodyParser.urlencoded({
