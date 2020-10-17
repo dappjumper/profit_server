@@ -1,6 +1,6 @@
 const axios = require('axios')
 const {ObjectId} = require('mongodb')
-const modules = require('./modules')
+const modules = require('./../modules')
 const telegramBase = 'https://api.telegram.org/bot'
 const telegramMethod = (token, method) => `${telegramBase}${token}/${method}`
 const ERROR_NO_TOKEN = {ok: false, error: 'No token specified'}
@@ -42,19 +42,49 @@ bot.getBot = (req, res) => {
   res.send({ok: true, data: req.bot})
 }
 
-bot.activation = (req, res) => {
-  if(typeof req.body.state == 'undefined') return res.send({ok:false, error:'Must specify activation state'})
-  if(typeof req.body.state !== 'boolean') return res.send({ok:false, error:'New state must be boolean'})
-  db.collection('bots').findOneAndUpdate({_id: ObjectId(req.params.bot_id)}, {$set:{active:req.body.state}}, function(err, result) {
-    if(err) return res.send({ok: false, error:'Could not set state'})
-    res.send({ok: true, data: {
-      listener: process.env.LISTENER_URL,
-      state: req.body.state
-    }})
-    result.value.active = req.body.state
-    if (!req.body.state) return telegram.stopWebhook(result.value)
-    telegram.startWebhook(result.value)
+bot.allowedUpdates = ['active']
+
+bot.doQuery = function(bot_id, query) {
+  return new Promise((resolve, reject)=>{
+    db.collection('bots').findOneAndUpdate({_id: ObjectId(bot_id)}, query, {new: true, returnOriginal: false}, function(err, result) {
+      if(err || !result) return reject({ok: false, error: 'Database error'})
+      resolve(result)
+    })
   })
+}
+
+function updateBot (req, res, query) {
+  bot.doQuery(req.bot._id, query)
+    .then((result)=>{
+      res.send({ok: true, data: query.$set})
+    })
+    .catch(()=>{
+      res.send({ok: false, error: 'Failed to update bot'})
+    })
+}
+
+function updateBotWithWebhook (req, res, query) {
+  telegram[req.body.data.active ? 'startWebhook' : 'stopWebhook'](req.bot)
+    .then((result)=>{
+      updateBot(req, res, query)
+    })
+    .catch((error)=>{
+      res.send({ok: false, error: 'Bot token seems to be invalid.'})
+    })
+}
+
+bot.updateBot = (req, res) => {
+  let query = {$set: {}}
+  let doUpdate = false
+  for(let i = 0; i<bot.allowedUpdates.length; i++) {
+    if (typeof req.body.data[bot.allowedUpdates[i]] !== 'undefined') {
+      doUpdate = true
+      query.$set[bot.allowedUpdates[i]] = req.body.data[bot.allowedUpdates[i]]
+    }
+  }
+  if (!doUpdate) res.send({ok: false, error: 'No updates performed'})
+  if (typeof req.body.data.active !== 'undefined') return updateBotWithWebhook(req, res, query)
+  updateBot(req, res, query)
 }
 
 bot.boot = (app) => {
@@ -64,7 +94,7 @@ bot.boot = (app) => {
   telegram = app.locals.telegram
   modules.boot(app)
   app.get(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.mustOwnBot, bot.populateBotFromParam, bot.getBot)
-  app.patch(`/bot/:bot_id/activation`, user.verifyJWT, user.populateUser, user.mustOwnBot, bot.activation)
+  app.patch(`/bot/:bot_id`, user.verifyJWT, user.populateUser, user.mustOwnBot, bot.populateBotFromParam, bot.updateBot)
 }
 
 module.exports = bot

@@ -11,7 +11,7 @@ var db, bot, user = null
 
 var telegram = {}
 
-telegram.startWebhook = function(bot) {
+telegram.startWebhook = function(bot, attempts) {
   return new Promise((resolve, reject) => {
     telegram.stopWebhook(bot)
     .then((webhook)=>{
@@ -21,10 +21,15 @@ telegram.startWebhook = function(bot) {
       .then((result) => {
         if (!result.data) return reject(ERROR_TELEGRAM_API)
         if (!result.data.ok) return reject(ERROR_TELEGRAM_API)
-        console.log('Webhook set!', `${process.env.LISTENER_URL}/telegram/${bot._id}`, result.data)
         resolve(result.data.result)
       })
       .catch((e) => {
+        if(!attempts) return setTimeout(()=>{
+          // Retry once if it fails
+          telegram.startWebhook(bot, true)
+            .then((result)=>{resolve(result)})
+            .catch(()=>{reject(ERROR_TELEGRAM_API)})
+        }, 500)
         reject(ERROR_TELEGRAM_API)
       })
     })
@@ -52,8 +57,7 @@ telegram.stopWebhook = function(bot) {
   return new Promise((resolve, reject) => {
     axios.get(`${TELEGRAM_API}${bot.t_info.token}/deleteWebhook`)
     .then(() => {
-      //Always resolve non-critical function
-      resolve()
+      resolve(true)
     })
     .catch((e) => {
       reject(ERROR_TELEGRAM_API)
@@ -61,13 +65,14 @@ telegram.stopWebhook = function(bot) {
   })
 }
 
-const modules = require('./../botSystem/modules.js')
+const modules = require('./../modules')
 
 telegram.onUpdate = function(req, res) {
   res.send(200)
-  for(let mod in req.bot.modules) {
-    if(req.bot.modules[mod].active && modules.handler[mod]) modules.handler[mod](req)
-  }
+  modules.onUpdate({
+    bot: req.bot,
+    data: req.body
+  })
 }
 
 telegram.boot = (app) => {
