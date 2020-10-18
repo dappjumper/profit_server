@@ -5,11 +5,8 @@ const common = {
     forward: (msg) => { return (msg.forward_from || msg.forward_from_chat || msg.forward_from_message_id) },
     joinOrLeft: (msg) => { return (msg.new_chat_members || msg.left_chat_member) },
     entityType: (msg, triggers) => {
-      console.log('Checking msg', triggers, msg)
       if (!msg.entities && !msg.caption_entities) return false
-      console.log(msg.entities, msg.caption_entities)
       const entities = (msg.entities || []).concat((msg.caption_entities || []))
-      console.log(entities)
       for(let i = 0; i<entities.length; i++) {
         if (triggers.includes(entities[i].type)) return true
       }
