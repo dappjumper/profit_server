@@ -30,6 +30,9 @@ client.connect(function(err, db) {
     app.locals.user.boot(app)
     app.locals.bot.boot(app)
     app.locals.telegram.boot(app)
+    app.get('/health',  function(req, res){
+      res.sendStatus(200)
+    })
     app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
   }
 
