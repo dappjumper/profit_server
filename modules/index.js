@@ -60,12 +60,17 @@ _m.updateBotModule = function(req, res) {
   if (!req.params.module_id) return res.send({ok: false, error: 'No module specified'})
   if (!req.body.data) return res.send({ok: false, error: 'No updates specified'})
   if (!_m.modules[req.params.module_id]) return res.send({ok: false, error: 'Module does not exist'})
+  if (!req.bot.modules) req.bot.modules = {}
   let query = {
     $set: {}
   }
   for(let i = 0; i<_m.modules[req.params.module_id].options.length; i++) {
     let option = _m.modules[req.params.module_id].options[i]
-    if(typeof req.body.data[option.id] !== 'undefined') query.$set['modules.'+req.params.module_id+'.'+option.id] = req.body.data[option.id]
+    if(typeof req.body.data[option.id] !== 'undefined') {
+      query.$set['modules.'+req.params.module_id+'.'+option.id] = req.body.data[option.id]
+    } else {
+      if (!req.bot.modules[req.params.module_id]) query.$set['modules.'+req.params.module_id+'.'+option.id] = option.default
+    }
   }
   if (typeof req.body.data.active !== 'undefined') {
     if(req.body.data.active) {

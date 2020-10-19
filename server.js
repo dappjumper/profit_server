@@ -25,11 +25,13 @@ client.connect(function(err, db) {
   app.locals.user = require('./userSystem')
   app.locals.bot = require('./botSystem')
   app.locals.telegram = require('./telegramSystem')
+  app.locals.coin = require('./coin')
 
   const boot = () => {
     app.locals.user.boot(app)
     app.locals.bot.boot(app)
     app.locals.telegram.boot(app)
+    app.locals.coin.boot(app)
     app.get('/health',  function(req, res){
       res.sendStatus(200)
     })
