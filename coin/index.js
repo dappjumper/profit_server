@@ -12,9 +12,9 @@ var coin = {
 var db, user, bot, telegram = null
 
 const products = [{
-  id: 'PREMIUM1MONTH',
-  name: '1 Month Pre-paid Premium',
-  description: 'Load one month of premium onto your bot of choice',
+  id: 'token',
+  name: 'Premium Token',
+  description: 'Load one month of premium per token onto your bot(s) of choice',
   cost: 25
 }]
 
